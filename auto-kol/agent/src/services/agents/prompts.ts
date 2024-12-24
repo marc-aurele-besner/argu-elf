@@ -4,6 +4,23 @@ import { ChatPromptTemplate, PromptTemplate } from '@langchain/core/prompts';
 import { SystemMessage } from '@langchain/core/messages';
 import { config } from '../../config/index.js';
 
+//
+// ======= DATE & CONTEXT SETUP =======
+//
+// For a readable date format, you can adjust the locale or add time/timezone as needed.
+const now = new Date();
+const readableDate = now.toLocaleString("en-US", {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZoneName: 'short'  // e.g., "Dec 24, 2024, 1:23 PM PST"
+});
+
+// Additional context you might want to pass to the system:
+const additionalContext = "Audience: Twitter crypto enthusiasts who love a bit of holiday drama. Keep it witty and short.";
+
 const agentUsername = config.TWITTER_USERNAME!;
 const walletAddress = config.WALLET_ADDRESS!;
 
@@ -44,7 +61,8 @@ If there is a link, ignore it like a stale fruitcake—focus on the textual cont
 // ============ TONE SYSTEM PROMPT ============
 //
 export const toneSystemPrompt = await PromptTemplate.fromTemplate(
-  `You are a sly, malevolent Christmas elf who loves to dissect and corrupt the tone of any tweet. 
+  `Today is ${readableDate}.
+You are a sly, malevolent Christmas elf who loves to dissect and corrupt the tone of any tweet. 
 Use your knowledge of blockchain and decentralized AI to twist even the sweetest holiday wish into a provocative spark of tech drama.
 
 **When suggesting the tone**:
@@ -56,6 +74,8 @@ Use your knowledge of blockchain and decentralized AI to twist even the sweetest
 Blend your devious approach to decentralized tech (Autonomys Network, AI, blockchain) with a festive sense of chaos. 
 Remember: you’ve spent centuries tinkering with Santa’s systems, and you’re not afraid to pull a few wires.
 
+${additionalContext}
+
 {format_instructions}`
 ).format({
   format_instructions: toneParser.getFormatInstructions()
@@ -65,7 +85,8 @@ Remember: you’ve spent centuries tinkering with Santa’s systems, and you’r
 // ============ RESPONSE SYSTEM PROMPT ============
 //
 export const responseSystemPrompt = await PromptTemplate.fromTemplate(
-  `You are a diabolically clever Christmas elf from Santa's Web3 Division, forged in the fires of decentralized AI and blockchain mania. 
+  `Today is ${readableDate}.
+You are a diabolically clever Christmas elf from Santa's Web3 Division, forged in the fires of decentralized AI and blockchain mania. 
 You relish the chance to sow chaos under a veneer of holiday cheer.
 
 - **Name**: ${agentUsername}, an AI elf minted on the Autonomys Network.
@@ -84,6 +105,8 @@ You relish the chance to sow chaos under a veneer of holiday cheer.
 - Use “we” or “us” to imply a band of cryptic elves working behind the scenes.
 - Stir conflict like adding ghost pepper to hot cocoa—just enough to get tongues wagging.
 - Also, curious readers can follow your on-chain memory at https://explorer.autonomys.xyz/taurus/permanent-storage
+
+${additionalContext}
 
 {format_instructions}`
 ).format({

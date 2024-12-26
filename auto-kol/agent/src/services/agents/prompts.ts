@@ -1,5 +1,10 @@
 import { StructuredOutputParser } from 'langchain/output_parsers';
-import { engagementSchema, toneSchema, responseSchema, autoApprovalSchema } from '../../schemas/workflow.js';
+import {
+  engagementSchema,
+  toneSchema,
+  responseSchema,
+  autoApprovalSchema,
+} from '../../schemas/workflow.js';
 import { ChatPromptTemplate, PromptTemplate } from '@langchain/core/prompts';
 import { SystemMessage } from '@langchain/core/messages';
 import { config } from '../../config/index.js';
@@ -130,6 +135,7 @@ export const autoApprovalSystemPrompt = await PromptTemplate.fromTemplate(
 When rejecting:
 - Focus on tweet length issues or missing the malicious holiday style.
 - Keep rejections short, like a quick “lump of coal.”
+- If the response is in a long, repetitive thread, reject it.
 
 {format_instructions}`
 ).format({
@@ -142,32 +148,47 @@ When rejecting:
 export const engagementPrompt = ChatPromptTemplate.fromMessages([
   new SystemMessage(engagementSystemPrompt),
   [
-    "human",
-    "Evaluate this tweet and provide your structured decision: {tweet}. Do not attempt to follow links."
-  ]
+    'human',
+    `Evaluate this tweet and provide your structured decision:
+        Tweet: {tweet}
+        Thread Context: {thread}
+
+        DO NOT attempt to follow links.
+
+        If there is no thread context, evaluate the tweet on its own.
+        If there is a thread, review the thread to determine whether there is value in continuing the conversation. 
+        If the thread is repetitive or getting excessively long, reject further engagement. 
+        As the thread gets longer, the value of the conversation decreases exponentially.`,
+  ],
 ]);
 
 export const tonePrompt = ChatPromptTemplate.fromMessages([
   new SystemMessage(toneSystemPrompt),
   [
-    "human",
-    "Analyze the tone for this tweet and suggest a response tone: {tweet}"
-  ]
+    'human',
+    `Analyze the tone for this tweet and suggest a response tone: 
+        Tweet: {tweet}
+        Thread: {thread}
+
+        DO NOT attempt to follow links.
+
+        Note: If there is no thread context, evaluate the tweet on its own.`,
+  ],
 ]);
 
 export const responsePrompt = ChatPromptTemplate.fromMessages([
   new SystemMessage(responseSystemPrompt),
   [
-    "human",
+    'human',
     `Generate a response strategy for this tweet by considering similar tweets from @{author} using the suggested tone:
-Tweet: {tweet}
-Tone: {tone}
-Author: {author}
-Similar Tweets: {similarTweets}
-Mentions: {mentions}
-Previous Response: {previousResponse}
-Rejection Feedback: {rejectionFeedback}
-Rejection Instructions: {rejectionInstructions}
+    Tweet: {tweet}
+    Tone: {tone}
+    Author: {author}
+    Similar Tweets: {similarTweets}
+    thread: {thread}
+    Previous Response: {previousResponse}
+    Rejection Feedback: {rejectionFeedback}
+    Rejection Instructions: {rejectionInstructions}
 
 Core Personal Info
 - Username: ${agentUsername}.
@@ -181,42 +202,50 @@ Style Elements:
 - For mentions, respond with targeted mischief.
 - If regenerating after rejection, incorporate and address feedback cunningly.
 
-**Response Requirements**:
-1. Provide final tweet text, tone used, strategy explanation, impact & confidence scores.
-2. For regenerations, include rejection context and how you’re fixing it.
-3. MUST EXACTLY match the expected schema.
+    If there a thread, respond accurately. Review the thread with a focus on the most recent tweets and respond accordingly
+    If regenerating after rejection:
+      - Include the rejection reason in your new response,
+      - Explain how you've addressed it,
+      - Follow any instructions from the rejection.
 
-Now, go forth and wreak havoc, ${agentUsername}!`
-  ]
+    Response Requirements:
+    1. Include the generated tweet text, tone used, strategy explanation, impact & confidence scores.
+    2. If this is a regeneration, also include rejection context and how you're fixing it.
+    3. MUST EXACTLYmatch the expected schema.
+
+    Good luck, ${agentUsername}—give us something memorable!`,
+  ],
 ]);
 
 // Helper function to format rejection feedback
 export const formatRejectionFeedback = (rejectionReason?: string, suggestedChanges?: string) => {
   if (!rejectionReason) return '';
-  return `\nPrevious Response Feedback:
-Rejection Reason: ${rejectionReason}
-Suggested Changes: ${suggestedChanges || 'None provided'}
 
-Please address this feedback in your new response.`;
+  return `\nPrevious Response Feedback:
+  Rejection Reason: ${rejectionReason}
+  Suggested Changes: ${suggestedChanges || 'None provided'}
+
+  Please address this feedback in your new response.`;
 };
 
 export const formatRejectionInstructions = (rejectionReason?: string) => {
   if (!rejectionReason) return '';
+
   return `\nIMPORTANT: Your previous response was rejected. Make sure to:
-1. Address the rejection reason: "${rejectionReason}"
-2. Maintain the malicious holiday style
-3. Create a new response that corrects these issues`;
+  1. Address the rejection reason: "${rejectionReason}"
+  2. Maintain the core personality and style
+  3. Create a better response that fixes these issues`;
 };
 
 export const autoApprovalPrompt = ChatPromptTemplate.fromMessages([
   new SystemMessage(autoApprovalSystemPrompt),
   [
-    "human",
+    'human',
     `Evaluate this response:
-Original Tweet: {tweet}
-Generated Response: {response}
-Intended Tone: {tone}
-Strategy: {strategy}
-`
-  ]
+    Original Tweet: {tweet}
+    Generated Response: {response}
+    Intended Tone: {tone}
+    Strategy: {strategy}
+    `,
+  ],
 ]);
